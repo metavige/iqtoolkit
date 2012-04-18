@@ -1,0 +1,26 @@
+﻿<Properties>
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" ctype="Workspace" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="Test/NorthwindCUDTests.cs" ctype="Workbench">
+    <Files>
+      <File FileName="Test/NorthwindCUDTests.cs" Line="717" Column="80" />
+      <File FileName="IQToolkit.Data/Common/Expressions/DbExpressions.cs" Line="532" Column="1" />
+    </Files>
+    <Pads>
+      <Pad Id="ProjectPad">
+        <State expanded="True">
+          <Node name="IQToolkit" expanded="True" />
+          <Node name="IQToolkit.Data" expanded="True">
+            <Node name="Common" expanded="True">
+              <Node name="Expressions" expanded="True" />
+            </Node>
+            <Node name="Mapping" expanded="True" />
+          </Node>
+          <Node name="IQToolkit.Data.SqlClient" expanded="True" />
+          <Node name="Test" expanded="True">
+            <Node name="NorthwindCUDTests.cs" selected="True" />
+          </Node>
+        </State>
+      </Pad>
+    </Pads>
+  </MonoDevelop.Ide.Workbench>
+</Properties>
