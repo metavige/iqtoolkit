@@ -20,6 +20,7 @@ namespace IQToolkit.Data.Common
         QueryLanguage language;
         IList<OrderExpression> gatheredOrderings;
         bool isOuterMostSelect;
+        bool suppressOrderby;
 
         private OrderByRewriter(QueryLanguage language)
         {
@@ -38,12 +39,29 @@ namespace IQToolkit.Data.Common
             try
             {
                 this.isOuterMostSelect = false;
+
+                var saveSuppressOrderBy = this.suppressOrderby;
+                this.suppressOrderby = false;
+
+                var saveGatheredOrderings = this.gatheredOrderings;
+                if (saveSuppressOrderBy)
+                {
+                    this.gatheredOrderings = null;
+                    this.isOuterMostSelect = true;
+                }
+
                 select = (SelectExpression)base.VisitSelect(select);
+
+                this.suppressOrderby = saveSuppressOrderBy;
+                if (saveSuppressOrderBy)
+                {
+                    this.gatheredOrderings = saveGatheredOrderings;
+                }
 
                 bool hasOrderBy = select.OrderBy != null && select.OrderBy.Count > 0;
                 bool hasGroupBy = select.GroupBy != null && select.GroupBy.Count > 0;
                 bool canHaveOrderBy = saveIsOuterMostSelect || select.Take != null || select.Skip != null;
-                bool canReceiveOrderings = canHaveOrderBy && !hasGroupBy && !select.IsDistinct && !AggregateChecker.HasAggregates(select);
+                bool canReceiveOrderings = canHaveOrderBy && !hasGroupBy && !select.IsDistinct && !AggregateChecker.HasAggregates(select) && !suppressOrderby;
 
                 if (hasOrderBy)
                 {
@@ -64,7 +82,8 @@ namespace IQToolkit.Data.Common
                 {
                     orderings = select.OrderBy;
                 }
-                bool canPassOnOrderings = !saveIsOuterMostSelect && !hasGroupBy && !select.IsDistinct;
+
+                bool canPassOnOrderings = !saveIsOuterMostSelect && !hasGroupBy && !select.IsDistinct && !suppressOrderby;
                 ReadOnlyCollection<ColumnDeclaration> columns = select.Columns;
                 if (this.gatheredOrderings != null)
                 {
@@ -82,10 +101,12 @@ namespace IQToolkit.Data.Common
                         this.gatheredOrderings = null;
                     }
                 }
+
                 if (orderings != select.OrderBy || columns != select.Columns || select.IsReverse)
                 {
                     select = new SelectExpression(select.Alias, columns, select.From, select.Where, orderings, select.GroupBy, select.IsDistinct, select.Skip, select.Take, false);
                 }
+
                 return select;
             }
             finally
@@ -94,12 +115,12 @@ namespace IQToolkit.Data.Common
             }
         }
 
-        protected override Expression VisitSubquery(SubqueryExpression subquery)
+        protected override Expression VisitSubquery(SubqueryExpression subquery)        
         {
-            var saveOrderings = this.gatheredOrderings;
-            this.gatheredOrderings = null;
+            var saveSuppressOrderBy = this.suppressOrderby;
+            this.suppressOrderby = true;
             var result = base.VisitSubquery(subquery);
-            this.gatheredOrderings = saveOrderings;
+            this.suppressOrderby = saveSuppressOrderBy;
             return result;
         }
 

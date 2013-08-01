@@ -21,12 +21,12 @@ namespace IQToolkit.Data
     /// </summary>
     public abstract class EntityProvider : QueryProvider, IEntityProvider, ICreateExecutor
     {
-        QueryLanguage language;
-        QueryMapping mapping;
+        private readonly QueryLanguage language;
+        private readonly QueryMapping mapping;
         QueryPolicy policy;
         TextWriter log;
-        Dictionary<MappingEntity, IEntityTable> tables;
         QueryCache cache;
+        private readonly Dictionary<MappingEntity, IEntityTable> tables;
 
         public EntityProvider(QueryLanguage language, QueryMapping mapping, QueryPolicy policy)
         {
@@ -149,8 +149,8 @@ namespace IQToolkit.Data
 
         public class EntityTable<T> : Query<T>, IEntityTable<T>, IHaveMappingEntity
         {
-            MappingEntity entity;
-            EntityProvider provider;
+            private readonly MappingEntity entity;
+            private readonly EntityProvider provider;
 
             public EntityTable(EntityProvider provider, MappingEntity entity)
                 : base(provider, typeof(IEntityTable<T>))
@@ -248,7 +248,7 @@ namespace IQToolkit.Data
 
         class CommandGatherer : DbExpressionVisitor
         {
-            List<QueryCommand> commands = new List<QueryCommand>();
+            private readonly List<QueryCommand> commands = new List<QueryCommand>();
 
             public static ReadOnlyCollection<QueryCommand> Gather(Expression expression)
             {
@@ -420,7 +420,7 @@ namespace IQToolkit.Data
         {
             foreach (var assem in AppDomain.CurrentDomain.GetAssemblies())
             {
-                if (assem.FullName.Contains(nspace))
+                if (string.Compare(Path.GetFileNameWithoutExtension(assem.Location), nspace, StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     return assem;
                 }

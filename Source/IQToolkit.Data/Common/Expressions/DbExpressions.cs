@@ -56,9 +56,16 @@ namespace IQToolkit.Data.Common
 
     public abstract class DbExpression : Expression
     {
-        protected DbExpression(DbExpressionType eType, Type type)
-            : base((ExpressionType)eType, type)
+        private readonly Type type;
+
+        protected DbExpression(Type type)
         {
+            this.type = type;
+        }
+
+        public override Type Type
+        {
+            get { return this.type; }
         }
 
         public override string ToString()
@@ -67,34 +74,43 @@ namespace IQToolkit.Data.Common
         }
     }
 
+    /// <summary>
+    /// A base class for expressions that declare table aliases.
+    /// </summary>
     public abstract class AliasedExpression : DbExpression
     {
-        TableAlias alias;
-        protected AliasedExpression(DbExpressionType nodeType, Type type, TableAlias alias)
-            : base(nodeType, type)
+        private readonly TableAlias alias;
+
+        protected AliasedExpression(Type type, TableAlias alias)
+            : base(type)
         {
             this.alias = alias;
         }
+
         public TableAlias Alias
         {
             get { return this.alias; }
         }
     }
 
-
     /// <summary>
     /// A custom expression node that represents a table reference in a SQL query
     /// </summary>
     public class TableExpression : AliasedExpression
     {
-        MappingEntity entity;
-        string name;
+        private readonly MappingEntity entity;
+        private readonly string name;
 
         public TableExpression(TableAlias alias, MappingEntity entity, string name)
-            : base(DbExpressionType.Table, typeof(void), alias)
+            : base(typeof(void), alias)
         {
             this.entity = entity;
             this.name = name;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Table; }
         }
 
         public MappingEntity Entity
@@ -113,16 +129,24 @@ namespace IQToolkit.Data.Common
         }
     }
 
+    /// <summary>
+    /// An expression node that introduces an entity mapping.
+    /// </summary>
     public class EntityExpression : DbExpression
     {
-        MappingEntity entity;
-        Expression expression;
+        private readonly MappingEntity entity;
+        private readonly Expression expression;
 
         public EntityExpression(MappingEntity entity, Expression expression)
-            : base(DbExpressionType.Entity, expression.Type)
+            : base(expression.Type)
         {
             this.entity = entity;
             this.expression = expression;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Entity; }
         }
 
         public MappingEntity Entity
@@ -146,7 +170,7 @@ namespace IQToolkit.Data.Common
         QueryType queryType;
 
         public ColumnExpression(Type type, QueryType queryType, TableAlias alias, string name)
-            : base(DbExpressionType.Column, type)
+            : base(type)
         {
             if (queryType == null)
                 throw new ArgumentNullException("queryType");
@@ -155,6 +179,11 @@ namespace IQToolkit.Data.Common
             this.alias = alias;
             this.name = name;
             this.queryType = queryType;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Column; }
         }
 
         public TableAlias Alias
@@ -195,6 +224,9 @@ namespace IQToolkit.Data.Common
         }
     }
 
+    /// <summary>
+    /// An alias for a table.
+    /// </summary>
     public class TableAlias
     {
         public TableAlias()
@@ -259,17 +291,20 @@ namespace IQToolkit.Data.Common
     /// </summary>
     public class OrderExpression
     {
-        OrderType orderType;
-        Expression expression;
+        private readonly OrderType orderType;
+        private readonly Expression expression;
+
         public OrderExpression(OrderType orderType, Expression expression)
         {
             this.orderType = orderType;
             this.expression = expression;
         }
+
         public OrderType OrderType
         {
             get { return this.orderType; }
         }
+
         public Expression Expression
         {
             get { return this.expression; }
@@ -281,15 +316,15 @@ namespace IQToolkit.Data.Common
     /// </summary>
     public class SelectExpression : AliasedExpression
     {
-        ReadOnlyCollection<ColumnDeclaration> columns;
-        bool isDistinct;
-        Expression from;
-        Expression where;
-        ReadOnlyCollection<OrderExpression> orderBy;
-        ReadOnlyCollection<Expression> groupBy;
-        Expression take;
-        Expression skip;
-        bool reverse;
+        private readonly ReadOnlyCollection<ColumnDeclaration> columns;
+        private readonly bool isDistinct;
+        private readonly Expression from;
+        private readonly Expression where;
+        private readonly ReadOnlyCollection<OrderExpression> orderBy;
+        private readonly ReadOnlyCollection<Expression> groupBy;
+        private readonly Expression take;
+        private readonly Expression skip;
+        private readonly bool reverse;
 
         public SelectExpression(
             TableAlias alias,
@@ -303,7 +338,7 @@ namespace IQToolkit.Data.Common
             Expression take,
             bool reverse
             )
-            : base(DbExpressionType.Select, typeof(void), alias)
+            : base(typeof(void), alias)
         {
             this.columns = columns.ToReadOnly();
             this.isDistinct = isDistinct;
@@ -315,6 +350,7 @@ namespace IQToolkit.Data.Common
             this.skip = skip;
             this.reverse = reverse;
         }
+
         public SelectExpression(
             TableAlias alias,
             IEnumerable<ColumnDeclaration> columns,
@@ -326,6 +362,7 @@ namespace IQToolkit.Data.Common
             : this(alias, columns, from, where, orderBy, groupBy, false, null, null, false)
         {
         }
+
         public SelectExpression(
             TableAlias alias, IEnumerable<ColumnDeclaration> columns,
             Expression from, Expression where
@@ -333,42 +370,57 @@ namespace IQToolkit.Data.Common
             : this(alias, columns, from, where, null, null)
         {
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Select; }
+        }
+
         public ReadOnlyCollection<ColumnDeclaration> Columns
         {
             get { return this.columns; }
         }
+
         public Expression From
         {
             get { return this.from; }
         }
+
         public Expression Where
         {
             get { return this.where; }
         }
+
         public ReadOnlyCollection<OrderExpression> OrderBy
         {
             get { return this.orderBy; }
         }
+
         public ReadOnlyCollection<Expression> GroupBy
         {
             get { return this.groupBy; }
         }
+
         public bool IsDistinct
         {
             get { return this.isDistinct; }
         }
+
         public Expression Skip
         {
             get { return this.skip; }
         }
+
         public Expression Take
         {
             get { return this.take; }
         }
+
         public bool IsReverse
         {
             get { return this.reverse; }
         }
+
         public string QueryText
         {
             get { return SqlFormatter.Format(this, true); }
@@ -389,51 +441,69 @@ namespace IQToolkit.Data.Common
     }
 
     /// <summary>
-    /// A custom expression node representing a SQL join clause
+    /// A SQL join clause expression
     /// </summary>
     public class JoinExpression : DbExpression
     {
-        JoinType joinType;
-        Expression left;
-        Expression right;
-        Expression condition;
+        private readonly JoinType joinType;
+        private readonly Expression left;
+        private readonly Expression right;
+        private readonly Expression condition;
 
         public JoinExpression(JoinType joinType, Expression left, Expression right, Expression condition)
-            : base(DbExpressionType.Join, typeof(void))
+            : base(typeof(void))
         {
             this.joinType = joinType;
             this.left = left;
             this.right = right;
             this.condition = condition;
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Join; }
+        }
+
         public JoinType Join
         {
             get { return this.joinType; }
         }
+
         public Expression Left
         {
             get { return this.left; }
         }
+
         public Expression Right
         {
             get { return this.right; }
         }
+
         public new Expression Condition
         {
             get { return this.condition; }
         }
     }
 
+    /// <summary>
+    /// A wrapper around and expression that is part of an outer joined projection
+    /// including a test expression to determine if the expression ought to be considered null.
+    /// </summary>
     public class OuterJoinedExpression : DbExpression
     {
-        Expression test;
-        Expression expression;
+        private readonly Expression test;
+        private readonly Expression expression;
 
         public OuterJoinedExpression(Expression test, Expression expression)
-            : base(DbExpressionType.OuterJoined, expression.Type)
+            : base(expression.Type)
         {
             this.test = test;
             this.expression = expression;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.OuterJoined; }
         }
 
         public Expression Test
@@ -447,82 +517,130 @@ namespace IQToolkit.Data.Common
         }
     }
 
+    /// <summary>
+    /// An base class for SQL subqueries.
+    /// </summary>
     public abstract class SubqueryExpression : DbExpression
     {
-        SelectExpression select;
-        protected SubqueryExpression(DbExpressionType eType, Type type, SelectExpression select)
-            : base(eType, type)
+        private readonly SelectExpression select;
+
+        protected SubqueryExpression(Type type, SelectExpression select)
+            : base(type)
         {
-            System.Diagnostics.Debug.Assert(eType == DbExpressionType.Scalar || eType == DbExpressionType.Exists || eType == DbExpressionType.In);
             this.select = select;
         }
+
         public SelectExpression Select
         {
             get { return this.select; }
         }
     }
 
+    /// <summary>
+    /// A SQL scalar subquery expression:
+    ///   exists(select x from y where z)
+    /// </summary>
     public class ScalarExpression : SubqueryExpression
     {
         public ScalarExpression(Type type, SelectExpression select)
-            : base(DbExpressionType.Scalar, type, select)
+            : base(type, select)
         {
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Scalar; }
         }
     }
 
+    /// <summary>
+    /// A SQL Exists subquery expression.
+    /// </summary>
     public class ExistsExpression : SubqueryExpression
     {
         public ExistsExpression(SelectExpression select)
-            : base(DbExpressionType.Exists, typeof(bool), select)
+            : base(typeof(bool), select)
         {
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Exists; }
         }
     }
 
+    /// <summary>
+    /// A SQL 'In' subquery:
+    ///   expr in (select x from y where z)
+    ///   expr in (a, b, c)
+    /// </summary>
     public class InExpression : SubqueryExpression
     {
-        Expression expression;
-        ReadOnlyCollection<Expression> values;  // either select or expressions are assigned
+        private readonly Expression expression;
+        private readonly ReadOnlyCollection<Expression> values;  // either select or expressions are assigned
+        
         public InExpression(Expression expression, SelectExpression select)
-            : base(DbExpressionType.In, typeof(bool), select)
+            : base(typeof(bool), select)
         {
             this.expression = expression;
         }
+        
         public InExpression(Expression expression, IEnumerable<Expression> values)
-            : base(DbExpressionType.In, typeof(bool), null)
+            : base(typeof(bool), null)
         {
             this.expression = expression;
             this.values = values.ToReadOnly();
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.In; }
+        }
+        
         public Expression Expression
         {
             get { return this.expression; }
         }
+
         public ReadOnlyCollection<Expression> Values
         {
             get { return this.values; }
         }
     }
 
+    /// <summary>
+    /// An SQL Aggregate expression:
+    ///     MIN, MAX, AVG, COUNT
+    /// </summary>
     public class AggregateExpression : DbExpression
     {
-        string aggregateName;
-        Expression argument;
-        bool isDistinct;
+        private readonly string aggregateName;
+        private readonly Expression argument;
+        private readonly bool isDistinct;
+
         public AggregateExpression(Type type, string aggregateName, Expression argument, bool isDistinct)
-            : base(DbExpressionType.Aggregate, type)
+            : base(type)
         {
             this.aggregateName = aggregateName;
             this.argument = argument;
             this.isDistinct = isDistinct;
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Aggregate; }
+        }
+       
         public string AggregateName
         {
             get { return this.aggregateName; }
         }
+
         public Expression Argument
         {
             get { return this.argument; }
         }
+
         public bool IsDistinct
         {
             get { return this.isDistinct; }
@@ -531,19 +649,37 @@ namespace IQToolkit.Data.Common
 
     public class AggregateSubqueryExpression : DbExpression
     {
-        TableAlias groupByAlias;
-        Expression aggregateInGroupSelect;
-        ScalarExpression aggregateAsSubquery;
+        private readonly TableAlias groupByAlias;
+        private readonly Expression aggregateInGroupSelect;
+        private readonly ScalarExpression aggregateAsSubquery;
+
         public AggregateSubqueryExpression(TableAlias groupByAlias, Expression aggregateInGroupSelect, ScalarExpression aggregateAsSubquery)
-            : base(DbExpressionType.AggregateSubquery, aggregateAsSubquery.Type)
+            : base(aggregateAsSubquery.Type)
         {
             this.aggregateInGroupSelect = aggregateInGroupSelect;
             this.groupByAlias = groupByAlias;
             this.aggregateAsSubquery = aggregateAsSubquery;
         }
-        public TableAlias GroupByAlias { get { return this.groupByAlias; } }
-        public Expression AggregateInGroupSelect { get { return this.aggregateInGroupSelect; } }
-        public ScalarExpression AggregateAsSubquery { get { return this.aggregateAsSubquery; } }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.AggregateSubquery; }
+        }
+       
+        public TableAlias GroupByAlias 
+        { 
+            get { return this.groupByAlias; } 
+        }
+
+        public Expression AggregateInGroupSelect 
+        { 
+            get { return this.aggregateInGroupSelect; } 
+        }
+
+        public ScalarExpression AggregateAsSubquery 
+        { 
+            get { return this.aggregateAsSubquery; } 
+        }
     }
 
     /// <summary>
@@ -551,12 +687,19 @@ namespace IQToolkit.Data.Common
     /// </summary>
     public class IsNullExpression : DbExpression
     {
-        Expression expression;
+        private readonly Expression expression;
+
         public IsNullExpression(Expression expression)
-            : base(DbExpressionType.IsNull, typeof(bool))
+            : base(typeof(bool))
         {
-            this.expression = expression;
+            this.expression = expression;        
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.IsNull; }
+        }     
+
         public Expression Expression
         {
             get { return this.expression; }
@@ -565,24 +708,33 @@ namespace IQToolkit.Data.Common
 
     public class BetweenExpression : DbExpression
     {
-        Expression expression;
-        Expression lower;
-        Expression upper;
+        private readonly Expression expression;
+        private readonly Expression lower;
+        private readonly Expression upper;
+
         public BetweenExpression(Expression expression, Expression lower, Expression upper)
-            : base(DbExpressionType.Between, expression.Type)
+            : base(expression.Type)
         {
             this.expression = expression;
             this.lower = lower;
             this.upper = upper;
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Between; }
+        }
+       
         public Expression Expression
         {
             get { return this.expression; }
         }
+
         public Expression Lower
         {
             get { return this.lower; }
         }
+
         public Expression Upper
         {
             get { return this.upper; }
@@ -591,12 +743,19 @@ namespace IQToolkit.Data.Common
 
     public class RowNumberExpression : DbExpression
     {
-        ReadOnlyCollection<OrderExpression> orderBy;
+        private readonly ReadOnlyCollection<OrderExpression> orderBy;
+
         public RowNumberExpression(IEnumerable<OrderExpression> orderBy)
-            : base(DbExpressionType.RowCount, typeof(int))
+            : base(typeof(int))
         {
             this.orderBy = orderBy.ToReadOnly();
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.RowCount; }
+        }
+       
         public ReadOnlyCollection<OrderExpression> OrderBy
         {
             get { return this.orderBy; }
@@ -605,17 +764,15 @@ namespace IQToolkit.Data.Common
 
     public class NamedValueExpression : DbExpression
     {
-        string name;
-        QueryType queryType;
-        Expression value;
+        private readonly string name;
+        private readonly QueryType queryType;
+        private readonly Expression value;
 
         public NamedValueExpression(string name, QueryType queryType, Expression value)
-            : base(DbExpressionType.NamedValue, value.Type)
+            : base(value.Type)
         {
             if (name == null)
                 throw new ArgumentNullException("name");
-            //if (queryType == null)
-                //throw new ArgumentNullException("queryType");
             if (value == null)
                 throw new ArgumentNullException("value");
             this.name = name;
@@ -623,6 +780,11 @@ namespace IQToolkit.Data.Common
             this.value = value;
         }
 
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.NamedValue; }
+        }
+       
         public string Name
         {
             get { return this.name; }
@@ -645,40 +807,53 @@ namespace IQToolkit.Data.Common
     /// </summary>
     public class ProjectionExpression : DbExpression
     {
-        SelectExpression select;
-        Expression projector;
-        LambdaExpression aggregator;
+        private readonly SelectExpression select;
+        private readonly Expression projector;
+        private readonly LambdaExpression aggregator;
+
         public ProjectionExpression(SelectExpression source, Expression projector)
             : this(source, projector, null)
         {
         }
+
         public ProjectionExpression(SelectExpression source, Expression projector, LambdaExpression aggregator)
-            : base(DbExpressionType.Projection, aggregator != null ? aggregator.Body.Type : typeof(IEnumerable<>).MakeGenericType(projector.Type))
+            : base(aggregator != null ? aggregator.Body.Type : typeof(IEnumerable<>).MakeGenericType(projector.Type))
         {
             this.select = source;
             this.projector = projector;
             this.aggregator = aggregator;
         }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Projection; }
+        }
+
         public SelectExpression Select
         {
             get { return this.select; }
         }
+
         public Expression Projector
         {
             get { return this.projector; }
         }
+
         public LambdaExpression Aggregator
         {
             get { return this.aggregator; }
         }
+
         public bool IsSingleton
         {
             get { return this.aggregator != null && this.aggregator.Body.Type == projector.Type; }
         }
+
         public override string ToString()
         {
             return DbExpressionWriter.WriteToString(this);
         }
+
         public string QueryText
         {
             get { return SqlFormatter.Format(select, true); }
@@ -687,16 +862,21 @@ namespace IQToolkit.Data.Common
 
     public class ClientJoinExpression : DbExpression
     {
-        ReadOnlyCollection<Expression> outerKey;
-        ReadOnlyCollection<Expression> innerKey;
-        ProjectionExpression projection;
+        private readonly ReadOnlyCollection<Expression> outerKey;
+        private readonly ReadOnlyCollection<Expression> innerKey;
+        private readonly ProjectionExpression projection;
 
         public ClientJoinExpression(ProjectionExpression projection, IEnumerable<Expression> outerKey, IEnumerable<Expression> innerKey)
-            : base(DbExpressionType.ClientJoin, projection.Type)
+            : base(projection.Type)
         {
             this.outerKey = outerKey.ToReadOnly();
             this.innerKey = innerKey.ToReadOnly();
             this.projection = projection;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.ClientJoin; }
         }
 
         public ReadOnlyCollection<Expression> OuterKey
@@ -717,18 +897,29 @@ namespace IQToolkit.Data.Common
 
     public class BatchExpression : Expression
     {
-        Expression input;
-        LambdaExpression operation;
-        Expression batchSize;
-        Expression stream;
+        private readonly Type type;
+        private readonly Expression input;
+        private readonly LambdaExpression operation;
+        private readonly Expression batchSize;
+        private readonly Expression stream;
 
         public BatchExpression(Expression input, LambdaExpression operation, Expression batchSize, Expression stream)
-            : base((ExpressionType)DbExpressionType.Batch, typeof(IEnumerable<>).MakeGenericType(operation.Body.Type))
         {
             this.input = input;
             this.operation = operation;
             this.batchSize = batchSize;
             this.stream = stream;
+            this.type = typeof(IEnumerable<>).MakeGenericType(operation.Body.Type);
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Batch; }
+        }
+
+        public override Type Type
+        {
+            get { return this.type; }
         }
 
         public Expression Input
@@ -754,14 +945,19 @@ namespace IQToolkit.Data.Common
 
     public class FunctionExpression : DbExpression
     {
-        string name;
-        ReadOnlyCollection<Expression> arguments;
+        private readonly string name;
+        private readonly ReadOnlyCollection<Expression> arguments;
 
         public FunctionExpression(Type type, string name, IEnumerable<Expression> arguments)
-            : base(DbExpressionType.Function, type)
+            : base(type)
         {
             this.name = name;
             this.arguments = arguments.ToReadOnly();
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Function; }
         }
 
         public string Name
@@ -777,22 +973,27 @@ namespace IQToolkit.Data.Common
 
     public abstract class CommandExpression : DbExpression
     {
-        protected CommandExpression(DbExpressionType eType, Type type)
-            : base(eType, type)
+        protected CommandExpression(Type type)
+            : base(type)
         {
         }
     }
 
     public class InsertCommand : CommandExpression
     {
-        TableExpression table;
-        ReadOnlyCollection<ColumnAssignment> assignments;
+        private readonly TableExpression table;
+        private readonly ReadOnlyCollection<ColumnAssignment> assignments;
 
         public InsertCommand(TableExpression table, IEnumerable<ColumnAssignment> assignments)
-            : base(DbExpressionType.Insert, typeof(int))
+            : base(typeof(int))
         {
             this.table = table;
             this.assignments = assignments.ToReadOnly();
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Insert; }
         }
 
         public TableExpression Table
@@ -808,8 +1009,8 @@ namespace IQToolkit.Data.Common
 
     public class ColumnAssignment
     {
-        ColumnExpression column;
-        Expression expression;
+        private readonly ColumnExpression column;
+        private readonly Expression expression;
 
         public ColumnAssignment(ColumnExpression column, Expression expression)
         {
@@ -830,16 +1031,21 @@ namespace IQToolkit.Data.Common
 
     public class UpdateCommand : CommandExpression
     {
-        TableExpression table;
-        Expression where;
-        ReadOnlyCollection<ColumnAssignment> assignments;
+        private readonly TableExpression table;
+        private readonly Expression where;
+        private readonly ReadOnlyCollection<ColumnAssignment> assignments;
 
         public UpdateCommand(TableExpression table, Expression where, IEnumerable<ColumnAssignment> assignments)
-            : base(DbExpressionType.Update, typeof(int))
+            : base(typeof(int))
         {
             this.table = table;
             this.where = where;
             this.assignments = assignments.ToReadOnly();
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Update; }
         }
 
         public TableExpression Table
@@ -860,14 +1066,19 @@ namespace IQToolkit.Data.Common
 
     public class DeleteCommand : CommandExpression
     {
-        TableExpression table;
-        Expression where;
+        private readonly TableExpression table;
+        private readonly Expression where;
 
         public DeleteCommand(TableExpression table, Expression where)
-            : base(DbExpressionType.Delete, typeof(int))
+            : base(typeof(int))
         {
             this.table = table;
             this.where = where;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Delete; }
         }
 
         public TableExpression Table
@@ -881,19 +1092,23 @@ namespace IQToolkit.Data.Common
         }
     }
 
-
     public class IFCommand : CommandExpression
     {
-        Expression check;
-        Expression ifTrue;
-        Expression ifFalse;
+        private readonly Expression check;
+        private readonly Expression ifTrue;
+        private readonly Expression ifFalse;
 
         public IFCommand(Expression check, Expression ifTrue, Expression ifFalse)
-            : base(DbExpressionType.If, ifTrue.Type)
+            : base(ifTrue.Type)
         {
             this.check = check;
             this.ifTrue = ifTrue;
             this.ifFalse = ifFalse;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.If; }
         }
 
         public Expression Check 
@@ -914,10 +1129,10 @@ namespace IQToolkit.Data.Common
 
     public class BlockCommand : CommandExpression
     {
-        ReadOnlyCollection<Expression> commands;
+        private readonly ReadOnlyCollection<Expression> commands;
 
         public BlockCommand(IList<Expression> commands)
-            : base(DbExpressionType.Block, commands[commands.Count-1].Type)
+            : base(commands[commands.Count-1].Type)
         {
             this.commands = commands.ToReadOnly();
         }
@@ -925,6 +1140,11 @@ namespace IQToolkit.Data.Common
         public BlockCommand(params Expression[] commands) 
             : this((IList<Expression>)commands)
         {
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Block; }
         }
 
         public ReadOnlyCollection<Expression> Commands
@@ -935,14 +1155,19 @@ namespace IQToolkit.Data.Common
 
     public class DeclarationCommand : CommandExpression
     {
-        ReadOnlyCollection<VariableDeclaration> variables;
-        SelectExpression source;
+        private readonly ReadOnlyCollection<VariableDeclaration> variables;
+        private readonly SelectExpression source;
 
         public DeclarationCommand(IEnumerable<VariableDeclaration> variables, SelectExpression source)
-            : base(DbExpressionType.Declaration, typeof(void))
+            : base(typeof(void))
         {
             this.variables = variables.ToReadOnly();
             this.source = source;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Declaration; }
         }
 
         public ReadOnlyCollection<VariableDeclaration> Variables
@@ -958,9 +1183,9 @@ namespace IQToolkit.Data.Common
 
     public class VariableDeclaration
     {
-        string name;
-        QueryType type;
-        Expression expression;
+        private readonly string name;
+        private readonly QueryType type;
+        private readonly Expression expression;
 
         public VariableDeclaration(string name, QueryType type, Expression expression)
         {
@@ -987,14 +1212,25 @@ namespace IQToolkit.Data.Common
 
     public class VariableExpression : Expression
     {
-        string name;
-        QueryType queryType;
+        private readonly string name;
+        private readonly Type type;
+        private readonly QueryType queryType;
 
         public VariableExpression(string name, Type type, QueryType queryType)
-            : base((ExpressionType)DbExpressionType.Variable, type)
         {
             this.name = name;
+            this.type = type;
             this.queryType = queryType;
+        }
+
+        public override ExpressionType NodeType
+        {
+            get { return (ExpressionType)DbExpressionType.Variable; }
+        }
+
+        public override Type Type
+        {
+            get { return this.type; }
         }
 
         public string Name

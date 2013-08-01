@@ -73,7 +73,7 @@ namespace IQToolkit.Data.Common
                     string name = decls.GetAvailableColumnName(col.Name);
                     var decl = new ColumnDeclaration(name, col, col.QueryType);
                     decls.Add(decl);
-                    var newCol = new ColumnExpression(col.Type, col.QueryType, newAlias, col.Name);
+                    var newCol = new ColumnExpression(col.Type, col.QueryType, newAlias, name);
                     this.map.Add(col, newCol);
                 }
             }

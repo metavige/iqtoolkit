@@ -64,11 +64,13 @@ namespace IQToolkit.Data.Common
                     exprs.Add(MakeAssign(this.variables[i], this.initializers[i]));
                 }
                 exprs.Add(expression);
-                Expression sequence = MakeSequence(exprs);  // yields last expression value
+
+                expression = MakeSequence(exprs);  // yields last expression value
+
+                var nulls = this.variables.Select(v => Expression.Constant(null, v.Type)).ToArray();
 
                 // use invoke/lambda to create variables via parameters in scope
-                Expression[] nulls = this.variables.Select(v => Expression.Constant(null, v.Type)).ToArray();
-                expression = Expression.Invoke(Expression.Lambda(sequence, this.variables.ToArray()), nulls);
+                expression = Expression.Invoke(Expression.Lambda(expression, this.variables.ToArray()), nulls);
             }
 
             return expression;

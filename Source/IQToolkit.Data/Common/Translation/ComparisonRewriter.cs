@@ -55,6 +55,17 @@ namespace IQToolkit.Data.Common
             var e2 = this.SkipConvert(bop.Right);
             EntityExpression entity1 = e1 as EntityExpression;
             EntityExpression entity2 = e2 as EntityExpression;
+
+            if (entity1 == null && e1 is OuterJoinedExpression)
+            {
+                entity1 = ((OuterJoinedExpression)e1).Expression as EntityExpression;
+            }
+
+            if (entity2 == null && e2 is OuterJoinedExpression)
+            {
+                entity2 = ((OuterJoinedExpression)e2).Expression as EntityExpression;
+            }
+
             bool negate = bop.NodeType == ExpressionType.NotEqual;
             if (entity1 != null)
             {
@@ -64,6 +75,7 @@ namespace IQToolkit.Data.Common
             {
                 return this.MakePredicate(e1, e2, this.mapping.GetPrimaryKeyMembers(entity2.Entity), negate);
             }
+
             var dm1 = this.GetDefinedMembers(e1);
             var dm2 = this.GetDefinedMembers(e2);
 

@@ -67,28 +67,23 @@ namespace IQToolkit
             }
         }
 
-        public bool Lookup(T item, bool add, out T cached)
+        public bool Lookup(T item, bool add, out T cachedItem)
         {
-            cached = default(T);
-            int cacheIndex = -1;
+            cachedItem = default(T);
+
             rwlock.EnterReadLock();
+            int cacheIndex = -1;
             int version = this.version;
             try
             {
-                for (int i = 0, n = this.list.Count; i < n; i++)
-                {
-                    cached = this.list[i];
-                    if (fnEquals(cached, item))
-                    {
-                        cacheIndex = 0;
-                    }
-                }
+                FindInList_NoLock(item, out cacheIndex, out cachedItem);
             }
             finally
             {
                 rwlock.ExitReadLock();
             }
-            if (cacheIndex != 0 && add)
+
+            if (cacheIndex == -1 || add)
             {
                 rwlock.EnterWriteLock();
                 try
@@ -96,36 +91,30 @@ namespace IQToolkit
                     // if list has changed find it again
                     if (this.version != version)
                     {
-                        cacheIndex = -1;
-                        for (int i = 0, n = this.list.Count; i < n; i++)
-                        {
-                            cached = this.list[i];
-                            if (fnEquals(cached, item))
-                            {
-                                cacheIndex = 0;
-                            }
-                        }
+                        FindInList_NoLock(item, out cacheIndex, out cachedItem);
                     }
+
                     if (cacheIndex == -1)
                     {
                         // this is first time in list, put at start
                         this.list.Insert(0, item);
-                        cached = item;
+                        cachedItem = item;
+                        cacheIndex = 0;
                     }
-                    else
+                    else if (cacheIndex > 0)
                     {
-                        if (cacheIndex > 0)
-                        {
-                            // if item is not at start, move it to the start
-                            this.list.RemoveAt(cacheIndex);
-                            this.list.Insert(0, item);
-                        }
+                        // if item is not at start, move it to the start
+                        this.list.RemoveAt(cacheIndex);
+                        this.list.Insert(0, item);
+                        cacheIndex = 0;
                     }
+
                     // drop any items beyond max
                     if (this.list.Count > this.maxSize)
                     {
                         this.list.RemoveAt(this.list.Count - 1);
                     }
+
                     this.version++;
                 }
                 finally
@@ -133,7 +122,24 @@ namespace IQToolkit
                     rwlock.ExitWriteLock();
                 }
             }
+
             return cacheIndex >= 0;
+        }
+
+        private void FindInList_NoLock(T item, out int index, out T cached)
+        {
+            index = -1;
+            cached = default(T);
+
+            for (int i = 0, n = this.list.Count; i < n; i++)
+            {
+                cached = this.list[i];
+                if (fnEquals(cached, item))
+                {
+                    index = i;
+                    break;
+                }
+            }
         }
     }
 }

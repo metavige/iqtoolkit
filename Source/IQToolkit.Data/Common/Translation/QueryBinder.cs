@@ -273,6 +273,11 @@ namespace IQToolkit.Data.Common
 
         private ProjectionExpression ConvertToSequence(Expression expr)
         {
+            while (expr.NodeType == ExpressionType.Quote)
+            {
+                expr = ((UnaryExpression)expr).Operand;
+            }
+
             switch (expr.NodeType)
             {
                 case (ExpressionType)DbExpressionType.Projection:
@@ -788,7 +793,7 @@ namespace IQToolkit.Data.Common
 
         private Type GetTrueUnderlyingType(Expression expression)
         {
-            while (expression.NodeType == ExpressionType.Convert)
+            while (expression.NodeType == ExpressionType.Convert || expression.NodeType == ExpressionType.ConvertChecked)
             {
                 expression = ((UnaryExpression)expression).Operand;
             }
@@ -900,10 +905,12 @@ namespace IQToolkit.Data.Common
             if (constSource != null && !IsQuery(constSource))
             {
                 System.Diagnostics.Debug.Assert(!isRoot);
+                var nonNullMatchType = TypeHelper.GetNonNullableType(match.Type);
+
                 List<Expression> values = new List<Expression>();
                 foreach (object value in (IEnumerable)constSource.Value)
                 {
-                    values.Add(Expression.Constant(Convert.ChangeType(value, match.Type), match.Type));
+                    values.Add(Expression.Constant(Convert.ChangeType(value, nonNullMatchType), match.Type));
                 }
                 match = this.Visit(match);
                 return new InExpression(match, values);
@@ -1093,6 +1100,7 @@ namespace IQToolkit.Data.Common
                     return result;
 
                 case ExpressionType.Convert:
+                case ExpressionType.ConvertChecked:
                     UnaryExpression ux = (UnaryExpression)source;
                     return BindMember(ux.Operand, member);
 

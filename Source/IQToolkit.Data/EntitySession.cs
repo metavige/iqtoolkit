@@ -246,7 +246,18 @@ namespace IQToolkit.Data
 
             private Func<FieldReader, T> Wrap<T>(Func<FieldReader, T> fnProjector, MappingEntity entity)
             {
-                Func<FieldReader, T> fnWrapped = (fr) => (T)this.session.OnEntityMaterialized(entity, fnProjector(fr));
+                Func<FieldReader, T> fnWrapped = (fr) =>
+                {
+                    if (entity != null)
+                    {
+                        return (T)this.session.OnEntityMaterialized(entity, fnProjector(fr));
+                    }
+                    else
+                    {
+                        return fnProjector(fr);
+                    }
+                };
+
                 return fnWrapped;
             }
         }

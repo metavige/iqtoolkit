@@ -158,7 +158,7 @@ namespace IQToolkit.Data.Common
 
             private ColumnExpression GetColumn(Expression exp)
             {
-                while (exp.NodeType == ExpressionType.Convert)
+                while (exp.NodeType == ExpressionType.Convert || exp.NodeType == ExpressionType.ConvertChecked)
                     exp = ((UnaryExpression)exp).Operand;
                 return exp as ColumnExpression;
             }

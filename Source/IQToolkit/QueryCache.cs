@@ -7,6 +7,9 @@ using System.Threading;
 
 namespace IQToolkit
 {
+    /// <summary>
+    /// Keeps a cache of compiled queries.
+    /// </summary>
     public class QueryCache
     {
         MostRecentlyUsedCache<QueryCompiler.CompiledQuery> cache;
@@ -87,27 +90,24 @@ namespace IQToolkit
             }
 
             var ep = provider as IEntityProvider;
-            Func<Expression, bool> fn = ep != null ? (Func<Expression, bool>)ep.CanBeEvaluatedLocally : null;
-            List<ParameterExpression> parameters = new List<ParameterExpression>();
-            List<object> values = new List<object>();
 
-            var body = PartialEvaluator.Eval(query, fn, c =>
-            {
-                bool isQueryRoot = c.Value is IQueryable;
-                if (!isQueryRoot && ep != null && !ep.CanBeParameter(c))
-                    return c;
-                var p = Expression.Parameter(c.Type, "p" + parameters.Count);
-                parameters.Add(p);
-                values.Add(c.Value);
-                // if query root then parameterize but don't replace in the tree 
-                if (isQueryRoot)
-                    return c;
-                return p;
-            });
+            // turn all relatively constant expression into actual constants
+            Func<Expression, bool> fnCanBeEvaluated = e => ep != null ? ep.CanBeEvaluatedLocally(e) : true;
+            var body = PartialEvaluator.Eval(query, fnCanBeEvaluated);
 
+            // convert all constants into parameters
+            Func<Expression, bool> fnCanBeParameter = e => ep != null ? ep.CanBeParameter(e) : true;
+            List<ParameterExpression> parameters;
+            List<object> values;
+            body = Parameterizer.Parameterize(body, fnCanBeParameter, out parameters, out values);
+
+            // make sure the body will return a value typed as 'object'.  
             if (body.Type != typeof(object))
+            {
                 body = Expression.Convert(body, typeof(object));
+            }
 
+            // make a lambda expression with these parameters
             arguments = values.ToArray();
             if (arguments.Length < 5)
             {
@@ -115,6 +115,7 @@ namespace IQToolkit
             }
             else
             {
+                // too many parameters, use an object array instead.
                 arguments = new object[] { arguments };
                 return ExplicitToObjectArray.Rewrite(body, parameters);
             }
@@ -142,7 +143,6 @@ namespace IQToolkit
             }
             return null;
         }
-
 
         class ExplicitToObjectArray : ExpressionVisitor
         {

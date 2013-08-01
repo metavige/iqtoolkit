@@ -171,7 +171,7 @@ namespace IQToolkit.Data.Common
             string name;
             if (!this.aliases.TryGetValue(alias, out name))
             {
-                name = "A" + alias.GetHashCode() + "?";
+                name = "ut" + this.aliases.Count;
                 this.aliases.Add(alias, name);
             }
             return name;
@@ -452,6 +452,7 @@ namespace IQToolkit.Data.Common
                     this.VisitValue(u.Operand);
                     break;
                 case ExpressionType.Convert:
+                case ExpressionType.ConvertChecked:
                     // ignore conversions for now
                     this.Visit(u.Operand);
                     break;

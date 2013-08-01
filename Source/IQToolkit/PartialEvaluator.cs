@@ -21,7 +21,7 @@ namespace IQToolkit
         /// <returns>A new tree with sub-trees evaluated and replaced.</returns>
         public static Expression Eval(Expression expression)
         {
-            return Eval(expression, null, null);
+            return Eval(expression, null);
         }
 
         /// <summary>
@@ -32,14 +32,9 @@ namespace IQToolkit
         /// <returns>A new tree with sub-trees evaluated and replaced.</returns>
         public static Expression Eval(Expression expression, Func<Expression, bool> fnCanBeEvaluated)
         {
-            return Eval(expression, fnCanBeEvaluated, null);
-        }
-
-        public static Expression Eval(Expression expression, Func<Expression, bool> fnCanBeEvaluated, Func<ConstantExpression, Expression> fnPostEval)
-        {
             if (fnCanBeEvaluated == null)
                 fnCanBeEvaluated = PartialEvaluator.CanBeEvaluatedLocally;
-            return SubtreeEvaluator.Eval(Nominator.Nominate(fnCanBeEvaluated, expression), fnPostEval, expression);
+            return SubtreeEvaluator.Eval(Nominator.Nominate(fnCanBeEvaluated, expression), expression);
         }
 
         private static bool CanBeEvaluatedLocally(Expression expression)
@@ -53,17 +48,15 @@ namespace IQToolkit
         class SubtreeEvaluator : ExpressionVisitor
         {
             HashSet<Expression> candidates;
-            Func<ConstantExpression, Expression> onEval;
 
-            private SubtreeEvaluator(HashSet<Expression> candidates, Func<ConstantExpression, Expression> onEval)
+            private SubtreeEvaluator(HashSet<Expression> candidates)
             {
                 this.candidates = candidates;
-                this.onEval = onEval;
             }
 
-            internal static Expression Eval(HashSet<Expression> candidates, Func<ConstantExpression, Expression> onEval, Expression exp)
+            internal static Expression Eval(HashSet<Expression> candidates, Expression exp)
             {
-                return new SubtreeEvaluator(candidates, onEval).Visit(exp);
+                return new SubtreeEvaluator(candidates).Visit(exp);
             }
 
             protected override Expression Visit(Expression exp)
@@ -72,47 +65,43 @@ namespace IQToolkit
                 {
                     return null;
                 }
+
                 if (this.candidates.Contains(exp))
                 {
                     return this.Evaluate(exp);
                 }
-                return base.Visit(exp);
-            }
 
-            private Expression PostEval(ConstantExpression e)
-            {
-                if (this.onEval != null)
-                {
-                    return this.onEval(e);
-                }
-                return e;
+                return base.Visit(exp);
             }
 
             private Expression Evaluate(Expression e)
             {
                 Type type = e.Type;
+
+                // check for nullable converts & strip them
                 if (e.NodeType == ExpressionType.Convert)
                 {
-                    // check for unnecessary convert & strip them
                     var u = (UnaryExpression)e;
                     if (TypeHelper.GetNonNullableType(u.Operand.Type) == TypeHelper.GetNonNullableType(type))
                     {
                         e = ((UnaryExpression)e).Operand;
                     }
                 }
+
+                // if we now just have a constant, return it
                 if (e.NodeType == ExpressionType.Constant)
                 {
-                    // in case we actually threw out a nullable conversion above, simulate it here
-                    // don't post-eval nodes that were already constants
-                    if (e.Type == type)
+                    var ce = (ConstantExpression)e;
+
+                    // if we've lost our nullable typeness add it back
+                    if (e.Type != type && TypeHelper.GetNonNullableType(e.Type) == TypeHelper.GetNonNullableType(type))
                     {
-                        return e;
+                        e = ce = Expression.Constant(ce.Value, type);
                     }
-                    else if (TypeHelper.GetNonNullableType(e.Type) == TypeHelper.GetNonNullableType(type))
-                    {
-                        return Expression.Constant(((ConstantExpression)e).Value, type);
-                    }
+
+                    return e;
                 }
+
                 var me = e as MemberExpression;
                 if (me != null)
                 {
@@ -122,20 +111,22 @@ namespace IQToolkit
                     var ce = me.Expression as ConstantExpression;
                     if (ce != null)
                     {
-                        return this.PostEval(Expression.Constant(me.Member.GetValue(ce.Value), type));
+                        return Expression.Constant(me.Member.GetValue(ce.Value), type);
                     }
                 }
+
                 if (type.IsValueType)
                 {
                     e = Expression.Convert(e, typeof(object));
                 }
+
                 Expression<Func<object>> lambda = Expression.Lambda<Func<object>>(e);
 #if NOREFEMIT
                 Func<object> fn = ExpressionEvaluator.CreateDelegate(lambda);
 #else
                 Func<object> fn = lambda.Compile();
 #endif
-                return this.PostEval(Expression.Constant(fn(), type));
+                return Expression.Constant(fn(), type);
             }
         }
 

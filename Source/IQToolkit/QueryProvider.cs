@@ -8,6 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace IQToolkit
 {
@@ -50,5 +51,6 @@ namespace IQToolkit
 
         public abstract string GetQueryText(Expression expression);
         public abstract object Execute(Expression expression);
+
     }
 }

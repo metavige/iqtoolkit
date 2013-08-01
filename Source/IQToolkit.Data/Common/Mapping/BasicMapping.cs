@@ -133,7 +133,7 @@ namespace IQToolkit.Data.Common
         /// <returns></returns>
         public virtual bool IsUpdatable(MappingEntity entity, MemberInfo member)
         {
-            return !this.IsPrimaryKey(entity, member);
+            return !this.IsPrimaryKey(entity, member) && !this.IsComputed(entity, member);
         }
 
         /// <summary>

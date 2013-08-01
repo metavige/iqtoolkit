@@ -15,11 +15,13 @@ namespace IQToolkit.Data.Common
     /// </summary>
     public class SkipToRowNumberRewriter : DbExpressionVisitor
     {
-        QueryLanguage language;
+        private readonly QueryLanguage language;
+        private readonly string columnName;
 
-        private SkipToRowNumberRewriter(QueryLanguage language)
+        private SkipToRowNumberRewriter(QueryLanguage language, string columnName = "_rownumber")
         {
             this.language = language;
+            this.columnName = columnName;
         }
 
         public static Expression Rewrite(QueryLanguage language, Expression expression)
@@ -38,16 +40,18 @@ namespace IQToolkit.Data.Common
                 {
                     newSelect = newSelect.AddRedundantSelect(this.language, new TableAlias());
                 }
+
                 var colType = this.language.TypeSystem.GetColumnType(typeof(int));
-                newSelect = newSelect.AddColumn(new ColumnDeclaration("_rownum", new RowNumberExpression(select.OrderBy), colType));
+                newSelect = newSelect.AddColumn(new ColumnDeclaration(columnName, new RowNumberExpression(select.OrderBy), colType));
 
                 // add layer for WHERE clause that references new rownum column
                 newSelect = newSelect.AddRedundantSelect(this.language, new TableAlias());
-                newSelect = newSelect.RemoveColumn(newSelect.Columns.Single(c => c.Name == "_rownum"));
+                newSelect = newSelect.RemoveColumn(newSelect.Columns.Single(c => c.Name == columnName));
 
                 var newAlias = ((SelectExpression)newSelect.From).Alias;
-                ColumnExpression rnCol = new ColumnExpression(typeof(int), colType, newAlias, "_rownum");
+                ColumnExpression rnCol = new ColumnExpression(typeof(int), colType, newAlias, columnName);
                 Expression where;
+
                 if (select.Take != null)
                 {
                     where = new BetweenExpression(rnCol, Expression.Add(select.Skip, Expression.Constant(1)), Expression.Add(select.Skip, select.Take));
@@ -56,14 +60,17 @@ namespace IQToolkit.Data.Common
                 {
                     where = rnCol.GreaterThan(select.Skip);
                 }
+
                 if (newSelect.Where != null)
                 {
                     where = newSelect.Where.And(where);
                 }
+
                 newSelect = newSelect.SetWhere(where);
 
                 select = newSelect;
             }
+
             return select;
         }
     }
